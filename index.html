@@ -428,10 +428,39 @@ let S;
 const normItem=i=>({id:uid(),name:'',price:0,orig:'',cat:'Other',brand:'',cond:'',size:'',desc:'',notes:'',status:'available',feat:0,fx:50,fy:50,...i,imgs:Array.isArray(i.imgs)?i.imgs.map(String):[]});
 const checkStore=j=>{if(!j||typeof j!=='object'||!Array.isArray(j.items))throw new Error('Needs an "items" array');j.items.forEach((i,k)=>{if(!i||!i.name)throw new Error('Item '+(k+1)+' needs a name')})};
 /* DATA SOURCES: browser edits, JSON baked into this file (#store-data), or store.json next to it. Highest "rev" wins. */
-async function load(){const c=[];try{c.push(JSON.parse(localStorage.getItem(LS)))}catch{}try{const t=$('#store-data').textContent.trim();if(t)c.push(JSON.parse(t))}catch{}
-try{const r=await fetch('store.json',{cache:'no-cache'});if(r.ok)c.push(await r.json())}catch{}
-S=c.filter(x=>x&&Array.isArray(x.items)).sort((a,b)=>(b.rev||0)-(a.rev||0))[0]||seed();S.settings={...seed().settings,...S.settings};if(!S.v){S.v=2;S.settings.theme='dark'}S.items=S.items.map(normItem)}
-const save=()=>{S.rev=Date.now();try{localStorage.setItem(LS,JSON.stringify(S))}catch{toast('Storage full. Export a backup.')}};
+async function load(){
+  const c=[];
+
+  try{
+    const x=localStorage.getItem(LS);
+    if(x)c.push(JSON.parse(x));
+  }catch{}
+
+  try{
+    const t=$('#store-data').textContent.trim();
+    if(t)c.push(JSON.parse(t));
+  }catch{}
+
+  try{
+    const r=await fetch('./store.json',{cache:'no-store'});
+    if(r.ok)c.push(await r.json());
+  }catch(e){
+    console.warn('store.json could not be fetched:',e);
+  }
+
+  S=c
+    .filter(x=>x&&Array.isArray(x.items))
+    .sort((a,b)=>(b.rev||0)-(a.rev||0))[0]||seed();
+
+  S.settings={...seed().settings,...S.settings};
+
+  if(!S.v){
+    S.v=2;
+    S.settings.theme='dark';
+  }
+
+  S.items=S.items.map(normItem);
+}
 const CATS=()=>['All',...S.settings.cats.split(',').map(s=>s.trim()).filter(Boolean)],CONDS=['New','Like new','Good','Used','Worn'];
 const getItem=id=>S.items.find(i=>i.id===id);
 const meta=i=>[i.cond,i.size].filter(Boolean).join(' / ');
@@ -597,7 +626,7 @@ if('reset'in D){if(!confirm('Reset the whole store? All items, photos and settin
 const blobToUrl=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
 async function exportStore(){toast('Preparing backup...');const images={};for(const i of S.items)for(const k of i.imgs)if(k.startsWith('idb:')&&!images[k]){try{const b=await DB.get(k);if(b)images[k]=await blobToUrl(b)}catch{}}
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,exported:new Date().toISOString(),settings:S.settings,items:S.items,images})],{type:'application/json'}));a.download='store-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup downloaded')}
-window.importStore = function (f){if(!f)return;try{const j=JSON.parse(await f.text());if(!j.items||!j.settings)throw 0;if(!confirm('Replace the current store with this backup?'))return;await DB.clear();for(const[k,v]of Object.entries(j.images||{}))await DB.put(k,await(await fetch(v)).blob());S={settings:{...seed().settings,...j.settings},items:j.items};save();render();edRender();toast('Store imported')}catch{toast('That file is not a valid store backup')}}
+async function importStore(f){if(!f)return;try{const j=JSON.parse(await f.text());if(!j.items||!j.settings)throw 0;if(!confirm('Replace the current store with this backup?'))return;await DB.clear();for(const[k,v]of Object.entries(j.images||{}))await DB.put(k,await(await fetch(v)).blob());S={settings:{...seed().settings,...j.settings},items:j.items};save();render();edRender();toast('Store imported')}catch{toast('That file is not a valid store backup')}}
 
 /* ===================== GLOBAL EVENTS ===================== */
 document.addEventListener('click',async e=>{const t=e.target;
@@ -641,7 +670,10 @@ if(reduce||seen){b.remove();return}const n=$('#bn'),t0=performance.now();let g=0
 document.body.insertAdjacentHTML('afterbegin',BOOT);const ready=load().then(()=>{render();route()});boot(ready);
 })();
 </script>
-<script>window.importStore('store.json');
+<script> const blobToUrl=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
+async function exportStore(){toast('Preparing backup...');const images={};for(const i of S.items)for(const k of i.imgs)if(k.startsWith('idb:')&&!images[k]){try{const b=await DB.get(k);if(b)images[k]=await blobToUrl(b)}catch{}}
+const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,exported:new Date().toISOString(),settings:S.settings,items:S.items,images})],{type:'application/json'}));a.download='store-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup downloaded')}
+async function importStore(f){if(!f)return;try{const j=JSON.parse(await f.text());if(!j.items||!j.settings)throw 0;if(!confirm('Replace the current store with this backup?'))return;await DB.clear();for(const[k,v]of Object.entries(j.images||{}))await DB.put(k,await(await fetch(v)).blob());S={settings:{...seed().settings,...j.settings},items:j.items};save();render();edRender();toast('Store imported')}catch{toast('That file is not a valid store backup')}}
 </script>
 </body>
 </html>
