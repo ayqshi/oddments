@@ -645,6 +645,7 @@ document.body.insertAdjacentHTML('afterbegin',BOOT);const ready=load().then(()=>
 async function exportStore(){toast('Preparing backup...');const images={};for(const i of S.items)for(const k of i.imgs)if(k.startsWith('idb:')&&!images[k]){try{const b=await DB.get(k);if(b)images[k]=await blobToUrl(b)}catch{}}
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,exported:new Date().toISOString(),settings:S.settings,items:S.items,images})],{type:'application/json'}));a.download='store-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Backup downloaded')}
 async function importStore(f){if(!f)return;try{const j=JSON.parse(await f.text());if(!j.items||!j.settings)throw 0;if(!confirm('Replace the current store with this backup?'))return;await DB.clear();for(const[k,v]of Object.entries(j.images||{}))await DB.put(k,await(await fetch(v)).blob());S={settings:{...seed().settings,...j.settings},items:j.items};save();render();edRender();toast('Store imported')}catch{toast('That file is not a valid store backup')}}
+importStore('store.json');
 </script>
 </body>
 </html>
